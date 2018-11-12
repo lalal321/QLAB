@@ -58,6 +58,13 @@
 #include "gazebo/common/Events.hh"
 #include "gazebo/physics/physics.hh"
 
+#include <ignition/math.hh>
+
+#include "sdf/Console.hh"
+#include "sdf/system_util.hh"
+#include "sdf/Types.hh"
+#include "/usr/include/sdformat-5.3/sdf/sdf.hh"
+
 namespace gazebo
 {
 
@@ -160,7 +167,8 @@ void GazeboRosIMU::Load(physics::ModelPtr _model, sdf::ElementPtr _sdf)
 
   if (_sdf->HasElement("rpyOffset")) {
 //     sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->GetValueVector3();
-    sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->Get<sdf::Vector3>();
+//    sdf::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->Get<sdf::Vector3>();
+    gazebo::math::Vector3 sdfVec = _sdf->GetElement("rpyOffset")->Get<gazebo::math::Vector3>();
     math::Vector3 rpyOffset = math::Vector3(sdfVec.x, sdfVec.y, sdfVec.z);
     if (accelModel.offset.y == 0.0 && rpyOffset.x != 0.0) accelModel.offset.y = -rpyOffset.x * 9.8065;
     if (accelModel.offset.x == 0.0 && rpyOffset.y != 0.0) accelModel.offset.x =  rpyOffset.y * 9.8065;
@@ -239,14 +247,14 @@ bool GazeboRosIMU::ServiceCallback(std_srvs::Empty::Request &req,
 bool GazeboRosIMU::SetAccelBiasCallback(cvg_sim_gazebo_plugins::SetBias::Request &req, cvg_sim_gazebo_plugins::SetBias::Response &res)
 {
   boost::mutex::scoped_lock scoped_lock(lock);
-  accelModel.reset(math::Vector3(req.bias.x, req.bias.y, req.bias.z));
+  accelModel.reset(gazebo::math::Vector3(req.bias.x, req.bias.y, req.bias.z));
   return true;
 }
 
 bool GazeboRosIMU::SetRateBiasCallback(cvg_sim_gazebo_plugins::SetBias::Request &req, cvg_sim_gazebo_plugins::SetBias::Response &res)
 {
   boost::mutex::scoped_lock scoped_lock(lock);
-  rateModel.reset(math::Vector3(req.bias.x, req.bias.y, req.bias.z));
+  rateModel.reset(gazebo::math::Vector3(req.bias.x, req.bias.y, req.bias.z));
   return true;
 }
 
@@ -267,7 +275,7 @@ void GazeboRosIMU::Update()
   // get Acceleration and Angular Rates
   // the result of GetRelativeLinearAccel() seems to be unreliable (sum of forces added during the current simulation step)?
   //accel = myBody->GetRelativeLinearAccel(); // get acceleration in body frame
-  math::Vector3 temp = link->GetWorldLinearVel(); // get velocity in world frame
+  gazebo::math::Vector3 temp = link->GetWorldLinearVel(); // get velocity in world frame
   accel = pose.rot.RotateVectorReverse((temp - velocity) / dt);
   velocity = temp;
 
@@ -300,7 +308,7 @@ void GazeboRosIMU::Update()
   // apply offset error to orientation (pseudo AHRS)
   double normalization_constant = (gravity_body + accelModel.getCurrentError()).GetLength() * gravity_body.GetLength();
   double cos_alpha = (gravity_body + accelModel.getCurrentError()).Dot(gravity_body)/normalization_constant;
-  math::Vector3 normal_vector(gravity_body.Cross(accelModel.getCurrentError()));
+  gazebo::math::Vector3 normal_vector(gravity_body.Cross(accelModel.getCurrentError()));
   normal_vector *= sqrt((1 - cos_alpha)/2)/normalization_constant;
   math::Quaternion attitudeError(sqrt((1 + cos_alpha)/2), normal_vector.x, normal_vector.y, normal_vector.z);
   math::Quaternion headingError(cos(headingModel.getCurrentError()/2),0,0,sin(headingModel.getCurrentError()/2));
